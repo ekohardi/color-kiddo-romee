@@ -1,0 +1,6 @@
+{
+  "name": "KiddoColor",
+  "description": "Kids coloring studio where you can color starter pages, convert your own designs into coloring templates, and install on Android.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
