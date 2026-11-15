@@ -2,6 +2,16 @@ export type ToolType = 'fill' | 'crayon' | 'marker' | 'rainbow' | 'eraser';
 
 export type BrushSize = 'sm' | 'md' | 'lg';
 
+export type PatternId =
+  | 'solid'
+  | 'love'
+  | 'rainbow'
+  | 'diamond'
+  | 'stars'
+  | 'dots'
+  | 'stripes'
+  | 'waves';
+
 export type AppView = 'library' | 'studio' | 'import' | 'artbook';
 
 export interface ColorSwatch {

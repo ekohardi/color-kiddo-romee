@@ -85,9 +85,10 @@ export default function App() {
         <button
           type="button"
           onClick={() => setView('library')}
-          className="text-xl font-bold tracking-tight text-[#1E2430] whitespace-nowrap shrink-0 cursor-pointer"
+          className="text-base sm:text-xl font-bold tracking-tight text-[#1E2430] whitespace-nowrap truncate max-w-[205px] sm:max-w-none shrink-0 cursor-pointer"
+          title="KiRoCo - Kids Romee Color"
         >
-          KiddoColor
+          KiRoCo - Kids Romee Color
         </button>
 
         <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-[#5C6473]">

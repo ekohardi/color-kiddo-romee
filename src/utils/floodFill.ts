@@ -1,13 +1,24 @@
+import { PatternId } from '../types/coloring';
+import { getPatternTileImageData } from './patternFill';
+
 function hexToRgb(hex: string): [number, number, number] {
   const clean = hex.replace('#', '');
   const num = parseInt(clean, 16);
   return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
 }
 
+export interface FloodFillOptions {
+  patternId?: PatternId;
+  /** Optional 1024x1024 region id buffer so patterned regions can be re-filled cleanly */
+  regionIds?: Uint16Array;
+  nextRegionId?: number;
+  tolerance?: number;
+}
+
 /**
  * Scanline flood fill on `paintCtx` bounded by both color similarity on `paintCtx`
- * and solid outline pixels on `lineCtx`. Feathers 1px into anti-aliased outline edges
- * to prevent white halos.
+ * (or matching pattern regionId) and solid outline pixels on `lineCtx`.
+ * Supports both Solid colors and seamless tiled Patterns (Love, Rainbow, Diamond, etc.).
  */
 export function floodFillCanvas(
   paintCtx: CanvasRenderingContext2D,
@@ -15,8 +26,15 @@ export function floodFillCanvas(
   startX: number,
   startY: number,
   fillHex: string,
-  tolerance = 42
+  options: FloodFillOptions = {}
 ): boolean {
+  const {
+    patternId = 'solid',
+    regionIds,
+    nextRegionId = 1,
+    tolerance = 42,
+  } = options;
+
   const width = paintCtx.canvas.width;
   const height = paintCtx.canvas.height;
   const sx = Math.floor(startX);
@@ -28,26 +46,36 @@ export function floodFillCanvas(
   const pData = paintImg.data;
   const lineData = lineCtx ? lineCtx.getImageData(0, 0, width, height).data : null;
 
-  const startIdx = (sy * width + sx) * 4;
+  const startPos = sy * width + sx;
+  const startIdx = startPos * 4;
 
   // Do not fill if user tapped directly on a solid dark line
   if (lineData && lineData[startIdx + 3] >= 180) {
     return false;
   }
 
+  const startRegionId = regionIds ? regionIds[startPos] : 0;
   const targetR = pData[startIdx];
   const targetG = pData[startIdx + 1];
   const targetB = pData[startIdx + 2];
   const [fillR, fillG, fillB] = hexToRgb(fillHex);
 
-  // Already the same color
+  // Skip no-op only for solid fill on non-patterned uniform area of the exact same color
   if (
+    patternId === 'solid' &&
+    startRegionId === 0 &&
     Math.abs(targetR - fillR) <= 4 &&
     Math.abs(targetG - fillG) <= 4 &&
     Math.abs(targetB - fillB) <= 4
   ) {
     return false;
   }
+
+  const patternTile =
+    patternId !== 'solid' ? getPatternTileImageData(patternId, fillHex) : null;
+  const tileW = patternTile ? patternTile.width : 1;
+  const tileH = patternTile ? patternTile.height : 1;
+  const tileData = patternTile ? patternTile.data : null;
 
   const visited = new Uint8Array(width * height);
   const filledMask = new Uint8Array(width * height);
@@ -57,16 +85,43 @@ export function floodFillCanvas(
     if (lineData && lineData[i + 3] >= 115) {
       return true;
     }
+    if (startRegionId > 0 && regionIds) {
+      return regionIds[pixelPos] !== startRegionId;
+    }
     const dr = Math.abs(pData[i] - targetR);
     const dg = Math.abs(pData[i + 1] - targetG);
     const db = Math.abs(pData[i + 2] - targetB);
     return dr > tolerance || dg > tolerance || db > tolerance;
   };
 
+  const writePixel = (pixelPos: number, x: number, y: number) => {
+    const idx = pixelPos * 4;
+    if (tileData) {
+      const tx = x % tileW;
+      const ty = y % tileH;
+      const tIdx = (ty * tileW + tx) * 4;
+      pData[idx] = tileData[tIdx];
+      pData[idx + 1] = tileData[tIdx + 1];
+      pData[idx + 2] = tileData[tIdx + 2];
+      pData[idx + 3] = 255;
+      if (regionIds) {
+        regionIds[pixelPos] = nextRegionId;
+      }
+    } else {
+      pData[idx] = fillR;
+      pData[idx + 1] = fillG;
+      pData[idx + 2] = fillB;
+      pData[idx + 3] = 255;
+      if (regionIds) {
+        regionIds[pixelPos] = 0;
+      }
+    }
+  };
+
   // Iterative scanline stack
   const stack = new Int32Array(width * height);
   let stackPtr = 0;
-  stack[stackPtr++] = sy * width + sx;
+  stack[stackPtr++] = startPos;
 
   while (stackPtr > 0) {
     const pos = stack[--stackPtr];
@@ -89,12 +144,7 @@ export function floodFillCanvas(
 
       visited[cur] = 1;
       filledMask[cur] = 1;
-
-      const idx = cur * 4;
-      pData[idx] = fillR;
-      pData[idx + 1] = fillG;
-      pData[idx + 2] = fillB;
-      pData[idx + 3] = 255;
+      writePixel(cur, x, y);
 
       if (y > 0) {
         const up = cur - width;
@@ -122,7 +172,7 @@ export function floodFillCanvas(
     }
   }
 
-  // Feather 1-2px under semi-transparent outline edges to remove white halos
+  // Feather 1px under semi-transparent outline edges to remove white halos
   if (lineData) {
     for (let y = 1; y < height - 1; y++) {
       for (let x = 1; x < width - 1; x++) {
@@ -134,11 +184,7 @@ export function floodFillCanvas(
           filledMask[cur - width] ||
           filledMask[cur + width];
         if (hasFilledNeighbor && lineData[cur * 4 + 3] > 0) {
-          const idx = cur * 4;
-          pData[idx] = fillR;
-          pData[idx + 1] = fillG;
-          pData[idx + 2] = fillB;
-          pData[idx + 3] = 255;
+          writePixel(cur, x, y);
         }
       }
     }

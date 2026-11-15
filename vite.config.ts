@@ -17,8 +17,8 @@ export default defineConfig(() => {
         includeAssets: ['icon.svg', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png', 'pwa-maskable-512x512.png'],
         manifest: {
           id: base,
-          name: 'KiddoColor Studio',
-          short_name: 'KiddoColor',
+          name: 'KiRoCo - Kids Romee Color',
+          short_name: 'KiRoCo',
           description: 'Kids coloring studio where you can color starter pages, add your own designs, and open on Android.',
           theme_color: '#FAF8F4',
           background_color: '#FAF8F4',

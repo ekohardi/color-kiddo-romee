@@ -12,7 +12,7 @@ export const PWAInstallButton: React.FC = () => {
     return null;
   }
 
-  const appUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  const appUrl = typeof window !== 'undefined' ? window.location.href.split('#')[0] : '';
 
   const handlePrimaryClick = async () => {
     if (isInstallable) {
@@ -39,7 +39,7 @@ export const PWAInstallButton: React.FC = () => {
     if (typeof navigator !== 'undefined' && 'share' in navigator) {
       try {
         await navigator.share({
-          title: 'KiddoColor — Kids Coloring Studio',
+          title: 'KiRoCo - Kids Romee Color',
           text: 'Color pages and add your own designs on Android!',
           url: appUrl,
         });
